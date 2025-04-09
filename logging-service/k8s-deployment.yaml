@@ -12,23 +12,42 @@ spec:
       labels:
         app: combined-service
     spec:
+      initContainers:
+        - name: init-log-file
+          image: busybox
+          command: ["/bin/sh", "-c", "mkdir -p /logs && touch /logs/book-service.log"]
+          volumeMounts:
+            - name: log-volume
+              mountPath: /logs
+
       containers:
         - name: book-service
-          image: book-service:4.0
+          image: book-service:4.1
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: log-volume
               mountPath: /logs
           ports:
             - containerPort: 8080
+
         - name: sidecar-service
-          image: sidecar-service:4.0
+          image: sidecar-service:4.1
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: log-volume
               mountPath: /logs
           ports:
             - containerPort: 8081
+          readinessProbe:
+            exec:
+              command:
+                - cat
+                - /logs/book-service.log
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 5
+          terminationMessagePolicy: FallbackToLogsOnError
+
       volumes:
         - name: log-volume
           emptyDir: {}
